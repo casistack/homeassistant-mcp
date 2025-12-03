@@ -266,11 +266,11 @@ export const automationConfigTool: Tool = {
             throw new Error(`Failed to get automation config: ${response.statusText}`);
           }
           const config = await response.json();
-          return {
+          return JSON.stringify({
             success: true,
             config_id: configId,
             config,
-          };
+          });
         }
 
         case "create": {
@@ -294,11 +294,11 @@ export const automationConfigTool: Tool = {
           const responseData = (await response.json()) as {
             automation_id: string;
           };
-          return {
+          return JSON.stringify({
             success: true,
             message: "Successfully created automation",
             automation_id: responseData.automation_id,
-          };
+          });
         }
 
         case "update": {
@@ -326,11 +326,11 @@ export const automationConfigTool: Tool = {
           const responseData = (await response.json()) as {
             automation_id: string;
           };
-          return {
+          return JSON.stringify({
             success: true,
             automation_id: responseData.automation_id,
             message: "Automation updated successfully",
-          };
+          });
         }
 
         case "delete": {
@@ -354,10 +354,10 @@ export const automationConfigTool: Tool = {
             throw new Error(`Failed to delete automation: ${response.statusText}`);
           }
 
-          return {
+          return JSON.stringify({
             success: true,
             message: `Successfully deleted automation ${params.automation_id}`,
-          };
+          });
         }
 
         case "duplicate": {
@@ -402,18 +402,18 @@ export const automationConfigTool: Tool = {
           }
 
           const newAutomation = (await createResponse.json()) as AutomationResponse;
-          return {
+          return JSON.stringify({
             success: true,
             message: `Successfully duplicated automation ${params.automation_id}`,
             new_automation_id: newAutomation.automation_id,
-          };
+          });
         }
       }
     } catch (error) {
-      return {
+      return JSON.stringify({
         success: false,
         message: error instanceof Error ? error.message : "Unknown error occurred",
-      };
+      });
     }
   },
 };
