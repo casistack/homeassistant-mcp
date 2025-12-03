@@ -26,6 +26,7 @@ import { LightsControlTool } from "./tools/homeassistant/lights.tool";
 import { ClimateControlTool } from "./tools/homeassistant/climate.tool";
 import { ListDevicesTool } from "./tools/homeassistant/list-devices.tool";
 import { AutomationTool } from "./tools/homeassistant/automation.tool";
+import { AutomationConfigTool } from "./tools/homeassistant/automation-config.tool";
 import { SceneTool } from "./tools/homeassistant/scene.tool";
 import { NotifyTool } from "./tools/homeassistant/notify.tool";
 
@@ -60,6 +61,7 @@ async function main(): Promise<void> {
   server.registerTool(new ClimateControlTool());
   server.registerTool(new ListDevicesTool());
   server.registerTool(new AutomationTool());
+  server.registerTool(new AutomationConfigTool());
   server.registerTool(new SceneTool());
   server.registerTool(new NotifyTool());
 
@@ -69,6 +71,7 @@ async function main(): Promise<void> {
     "climate_control",
     "list_devices",
     "automation",
+    "automation_config",
     "scene",
     "notify",
   ];
@@ -230,7 +233,8 @@ async function main(): Promise<void> {
           prompts: true,
           streaming: false,
         },
-        categories: ["smart-home", "automation", "iot", "home-assistant"],
+        categories: ["smart-home", "automation",
+    "automation_config", "iot", "home-assistant"],
         endpoints: {
           health: "/health",
           api: "/api/mcp",
