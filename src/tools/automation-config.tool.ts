@@ -200,7 +200,7 @@ const _automationConfigSchema = z
 
 export const automationConfigTool: Tool = {
   name: "automation_config",
-  description: "Advanced automation configuration and management - create, update, duplicate, and delete automations",
+  description: "Advanced automation configuration and management - get, create, update, duplicate, and delete automations",
   annotations: {
     title: "Automation Configuration",
     description: "Create and manage complex Home Assistant automations with advanced configuration",
@@ -212,20 +212,67 @@ export const automationConfigTool: Tool = {
   // Simplified schema to avoid recursive $ref issues in VSCode validation
   parameters: z.object({
     action: z
-      .enum(["create", "update", "delete", "duplicate"])
+      .enum(["get", "create", "update", "delete", "duplicate"])
       .describe("Action to perform with automation config"),
     automation_id: z
       .string()
       .optional()
-      .describe("Automation ID (required for update, delete, and duplicate)"),
+      .describe("Automation ID or entity_id (required for get, update, delete, and duplicate)"),
     config: z
       .record(z.string(), z.unknown())
       .optional()
       .describe("Automation configuration object (required for create and update)"),
   }),
   execute: async (params: AutomationConfigParams) => {
+    // Helper function to resolve entity_id to config_id
+    const resolveConfigId = async (automationId: string): Promise<string> => {
+      if (automationId.startsWith("automation.")) {
+        const stateResponse = await fetch(`${APP_CONFIG.HASS_HOST}/api/states/${automationId}`, {
+          headers: {
+            Authorization: `Bearer ${APP_CONFIG.HASS_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+        });
+        if (!stateResponse.ok) {
+          throw new Error(`Failed to find automation: ${automationId}`);
+        }
+        const state = (await stateResponse.json()) as { attributes: { id?: string } };
+        if (!state.attributes?.id) {
+          throw new Error(`Automation ${automationId} does not have a config ID (may be YAML-defined)`);
+        }
+        return state.attributes.id;
+      }
+      return automationId;
+    };
+
     try {
       switch (params.action) {
+
+        case "get": {
+          if (!params.automation_id) {
+            throw new Error("Automation ID is required for get action");
+          }
+          const configId = await resolveConfigId(params.automation_id);
+          const response = await fetch(
+            `${APP_CONFIG.HASS_HOST}/api/config/automation/config/${configId}`,
+            {
+              headers: {
+                Authorization: `Bearer ${APP_CONFIG.HASS_TOKEN}`,
+                "Content-Type": "application/json",
+              },
+            },
+          );
+          if (!response.ok) {
+            throw new Error(`Failed to get automation config: ${response.statusText}`);
+          }
+          const config = await response.json();
+          return {
+            success: true,
+            config_id: configId,
+            config,
+          };
+        }
+
         case "create": {
           if (params.config == null) {
             throw new Error("Configuration is required for creating automation");
@@ -258,11 +305,12 @@ export const automationConfigTool: Tool = {
           if (params.automation_id == null || params.config == null) {
             throw new Error("Automation ID and configuration are required for updating automation");
           }
+          const updateConfigId = await resolveConfigId(params.automation_id);
 
           const response = await fetch(
-            `${APP_CONFIG.HASS_HOST}/api/config/automation/config/${params.automation_id}`,
+            `${APP_CONFIG.HASS_HOST}/api/config/automation/config/${updateConfigId}`,
             {
-              method: "PUT",
+              method: "POST",  // HA API uses POST for updates
               headers: {
                 Authorization: `Bearer ${APP_CONFIG.HASS_TOKEN}`,
                 "Content-Type": "application/json",
@@ -289,9 +337,10 @@ export const automationConfigTool: Tool = {
           if (!params.automation_id) {
             throw new Error("Automation ID is required for deleting automation");
           }
+          const deleteConfigId = await resolveConfigId(params.automation_id);
 
           const response = await fetch(
-            `${APP_CONFIG.HASS_HOST}/api/config/automation/config/${params.automation_id}`,
+            `${APP_CONFIG.HASS_HOST}/api/config/automation/config/${deleteConfigId}`,
             {
               method: "DELETE",
               headers: {
@@ -315,10 +364,11 @@ export const automationConfigTool: Tool = {
           if (!params.automation_id) {
             throw new Error("Automation ID is required for duplicating automation");
           }
+          const duplicateConfigId = await resolveConfigId(params.automation_id);
 
           // First, get the existing automation config
           const getResponse = await fetch(
-            `${APP_CONFIG.HASS_HOST}/api/config/automation/config/${params.automation_id}`,
+            `${APP_CONFIG.HASS_HOST}/api/config/automation/config/${duplicateConfigId}`,
             {
               headers: {
                 Authorization: `Bearer ${APP_CONFIG.HASS_TOKEN}`,
